@@ -31,10 +31,12 @@ const loadProducts = async () => {
 const saveProducts = async (products) => {
     try {
         await fs.writeFile(DATA_FILE, JSON.stringify(products, null, 2), "utf8");
+        console.log("✅ Products saved successfully");
     } catch (error) {
         console.error("❌ Error saving products:", error);
     }
 };
+
 
 // WebSocket connection
 wss.on("connection", (ws) => {
