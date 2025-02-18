@@ -7,7 +7,7 @@ const { body, param, validationResult } = require("express-validator");
 const WebSocket = require("ws");
 
 const app = express();
-const PORT = 4000;
+const PORT = process.env.PORT || 10000; // Use Render's assigned port
 const DATA_FILE = path.join(__dirname, "products.json");
 const BEEP_SOUND_PATH = path.join(__dirname, "frontend", "audio", "beep.mp3");
 
@@ -41,23 +41,11 @@ wss.on("connection", (ws) => {
     clients.push(ws);
 
     ws.on("message", (message) => {
-        // Handle messages if necessary, for example, sending scan results
         console.log("Message received:", message);
     });
 
     ws.on("close", () => {
         clients = clients.filter(client => client !== ws);
-    });
-});
-
-// Handle WebSocket upgrade (to establish the WebSocket server)
-app.server = app.listen(PORT, () => {
-    console.log(`🚀 Server running on http://localhost:${PORT}`);
-});
-
-app.server.on("upgrade", (request, socket, head) => {
-    wss.handleUpgrade(request, socket, head, (ws) => {
-        wss.emit("connection", ws, request);
     });
 });
 
@@ -99,8 +87,6 @@ app.post(
             }
 
             await saveProducts(products);
-
-            // Broadcast the updated products to all connected clients
             clients.forEach(client => client.send(JSON.stringify({ type: 'product-updated', products })));
 
             res.json({ message: "Product saved successfully!", products });
@@ -131,8 +117,6 @@ app.put(
 
             products[productIndex].stock = stock;
             await saveProducts(products);
-
-            // Broadcast the updated product to all connected clients
             clients.forEach(client => client.send(JSON.stringify({ type: 'product-updated', products })));
 
             res.json({ message: "Product updated successfully!", products });
@@ -155,8 +139,6 @@ app.delete(
             let products = (await loadProducts()).filter((p) => p.id !== productId);
 
             await saveProducts(products);
-
-            // Broadcast the product deletion to all connected clients
             clients.forEach(client => client.send(JSON.stringify({ type: 'product-deleted', productId })));
 
             res.json({ message: "Product deleted successfully!" });
@@ -217,8 +199,6 @@ app.post(
             }
 
             await saveProducts(products);
-
-            // Broadcast the updated scan to all connected clients
             clients.forEach(client => client.send(JSON.stringify({ type: 'scan-saved', product })));
 
             res.json({ message: "Scan saved", product });
@@ -227,3 +207,14 @@ app.post(
         }
     }
 );
+
+// Start Server with WebSocket Support
+const server = app.listen(PORT, () => {
+    console.log(`🚀 Server running on http://localhost:${PORT}`);
+});
+
+server.on("upgrade", (request, socket, head) => {
+    wss.handleUpgrade(request, socket, head, (ws) => {
+        wss.emit("connection", ws, request);
+    });
+});
