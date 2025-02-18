@@ -1,0 +1,318 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>All Products</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        .modal, .modal-overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+        }
+        .modal-overlay {
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 999;
+        }
+        .modal {
+            background: white;
+            padding: 2rem;
+            box-shadow: 0px 8px 16px rgba(0,0,0,0.2);
+            border-radius: 12px;
+            width: 90%;
+            max-width: 400px;
+            z-index: 1000;
+            transform: translate(-50%, -50%);
+            left: 50%;
+            top: 50%;
+        }
+        .popup {
+            position: fixed;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background-color: #333;
+            color: #fff;
+            padding: 12px 24px;
+            border-radius: 8px;
+            display: none;
+            z-index: 1000;
+            animation: fadeInOut 3s ease-in-out;
+        }
+        @keyframes fadeInOut {
+            0% { opacity: 0; }
+            10% { opacity: 1; }
+            90% { opacity: 1; }
+            100% { opacity: 0; }
+        }
+        .table-row:hover {
+            background-color: #f9fafb;
+        }
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(0, 0, 0, 0.3);
+            border-radius: 50%;
+            border-top-color: #000;
+            animation: spin 1s ease-in-out infinite;
+        }
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body class="bg-gray-50 p-6 font-sans">
+    <div class="max-w-6xl mx-auto bg-white p-8 rounded-lg shadow-lg">
+        <h1 class="text-3xl font-bold text-gray-900 mb-6 text-center">📦 All Products</h1>
+
+        <!-- Search and Bulk Actions -->
+        <div class="flex justify-between items-center mb-6">
+            <input type="text" id="searchInput" class="w-1/2 p-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="Search by name or ID...">
+            <button id="bulkDelete" class="px-6 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition duration-300">🗑️ Delete Selected</button>
+        </div>
+
+        <!-- Product Table -->
+        <div class="overflow-x-auto">
+            <table class="w-full border-collapse">
+                <thead>
+                    <tr class="bg-gray-100">
+                        <th class="p-3 border text-left text-sm font-semibold text-gray-700">
+                            <input type="checkbox" id="selectAll" class="form-checkbox h-4 w-4 text-blue-600">
+                        </th>
+                        <th class="p-3 border text-left text-sm font-semibold text-gray-700">Product Id</th>
+                        <th class="p-3 border text-left text-sm font-semibold text-gray-700">Product Name</th>
+                        <th class="p-3 border text-left text-sm font-semibold text-gray-700">Stock</th>
+                        <th class="p-3 border text-left text-sm font-semibold text-gray-700">Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="full-inventory" class="text-sm text-gray-600"></tbody>
+            </table>
+        </div>
+
+        <!-- Pagination -->
+        <div class="flex justify-between items-center mt-6">
+            <button id="prevPage" class="px-6 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition duration-300">⬅️ Previous</button>
+            <span id="pageInfo" class="text-sm text-gray-700">Page 1 of 1</span>
+            <button id="nextPage" class="px-6 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition duration-300">Next ➡️</button>
+        </div>
+
+        <div class="text-center mt-8">
+            <a href="index.html" class="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition duration-300">🔙 Back to Dashboard</a>
+        </div>
+    </div>
+
+    <!-- Edit Product Modal -->
+    <div id="modal-overlay" class="modal-overlay"></div>
+    <div id="edit-modal" class="modal">
+        <h2 class="text-xl font-bold mb-4 text-gray-900">✏️ Edit Product</h2>
+        <label class="block mb-2 text-sm font-medium text-gray-700">Product Name:</label>
+        <input type="text" id="edit-name" class="w-full p-2 border rounded-lg mb-4 focus:outline-none focus:ring-2 focus:ring-blue-500">
+
+        <label class="block mb-2 text-sm font-medium text-gray-700">Stock:</label>
+        <input type="number" id="edit-stock" class="w-full p-2 border rounded-lg mb-4 focus:outline-none focus:ring-2 focus:ring-blue-500">
+
+        <div class="flex justify-between">
+            <button id="save-edit" class="px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition duration-300">✅ Save</button>
+            <button id="cancel-edit" class="px-6 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition duration-300">❌ Cancel</button>
+        </div>
+    </div>
+
+    <div id="popup" class="popup"></div>
+
+    <script>
+        let inventory = [];
+        let editIndex = null;
+        let currentPage = 1;
+        const itemsPerPage = 10;
+        const fullInventory = document.getElementById("full-inventory");
+
+        async function fetchInventory() {
+            try {
+                const response = await fetch("http://localhost:4000/products");
+                if (!response.ok) throw new Error("Failed to fetch products");
+
+                inventory = await response.json();
+                renderInventory();
+                updatePagination();
+            } catch (error) {
+                console.error("❌ Error fetching products:", error);
+                showPopup("⚠️ Error fetching products");
+            }
+        }
+
+        function renderInventory(filteredData = inventory) {
+            const start = (currentPage - 1) * itemsPerPage;
+            const end = start + itemsPerPage;
+            const paginatedData = filteredData.slice(start, end);
+
+            fullInventory.innerHTML = paginatedData.length 
+                ? paginatedData.map((item, index) => `
+                    <tr class="table-row">
+                        <td class="p-3 border">
+                            <input type="checkbox" class="form-checkbox h-4 w-4 text-blue-600 product-checkbox" data-index="${start + index}">
+                        </td>
+                        <td class="p-3 border">${item.id}</td>
+                        <td class="p-3 border">${item.name}</td>
+                        <td class="p-3 border">${item.stock}</td>
+                        <td class="p-3 border text-center">
+                            <button class="px-4 py-2 bg-yellow-500 text-white rounded-lg hover:bg-yellow-600 transition duration-300" onclick="editProduct(${start + index})">✏️ Edit</button>
+                            <button class="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition duration-300 ml-2" onclick="deleteProduct(${start + index})">🗑️ Delete</button>
+                        </td>
+                    </tr>
+                `).join("")
+                : `<tr><td colspan="5" class="text-center p-4 text-gray-500">No products available.</td></tr>`;
+        }
+
+        function updatePagination() {
+            const totalPages = Math.ceil(inventory.length / itemsPerPage);
+            document.getElementById("pageInfo").innerText = `Page ${currentPage} of ${totalPages}`;
+            document.getElementById("prevPage").disabled = currentPage === 1;
+            document.getElementById("nextPage").disabled = currentPage === totalPages;
+        }
+
+        function editProduct(index) {
+            editIndex = index;
+            document.getElementById("edit-name").value = inventory[index].name;
+            document.getElementById("edit-stock").value = inventory[index].stock;
+            openModal();
+        }
+
+        async function updateProduct() {
+            const updatedProduct = {
+                id: inventory[editIndex].id,
+                name: document.getElementById("edit-name").value.trim(),
+                stock: parseInt(document.getElementById("edit-stock").value),
+            };
+
+            if (!updatedProduct.name || isNaN(updatedProduct.stock) || updatedProduct.stock < 0) {
+                showPopup("⚠️ Invalid product details");
+                return;
+            }
+
+            try {
+                const response = await fetch("http://localhost:4000/update-product", {
+                    method: "PUT",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify(updatedProduct),
+                });
+
+                if (!response.ok) throw new Error("Failed to update product");
+
+                inventory[editIndex] = updatedProduct;
+                renderInventory();
+                closeModal();
+                showPopup("✅ Product updated!");
+            } catch (error) {
+                console.error("❌ Error updating product:", error);
+                showPopup("⚠️ Error updating product");
+            }
+        }
+
+        async function deleteProduct(index) {
+            if (!confirm("Are you sure you want to delete this product?")) return;
+
+            try {
+                const response = await fetch(`http://localhost:4000/delete-product/${inventory[index].id}`, {
+                    method: "DELETE",
+                });
+
+                if (!response.ok) throw new Error("Failed to delete product");
+
+                inventory.splice(index, 1);
+                renderInventory();
+                updatePagination();
+                showPopup("🗑️ Product deleted!");
+            } catch (error) {
+                console.error("❌ Error deleting product:", error);
+                showPopup("⚠️ Error deleting product");
+            }
+        }
+
+        async function deleteSelectedProducts() {
+            const selectedIndices = Array.from(document.querySelectorAll(".product-checkbox:checked"))
+                .map(checkbox => parseInt(checkbox.dataset.index));
+
+            if (selectedIndices.length === 0) {
+                showPopup("⚠️ No products selected");
+                return;
+            }
+
+            if (!confirm("Are you sure you want to delete the selected products?")) return;
+
+            try {
+                const response = await fetch("http://localhost:4000/delete-products", {
+                    method: "DELETE",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ ids: selectedIndices.map(index => inventory[index].id) }),
+                });
+
+                if (!response.ok) throw new Error("Failed to delete products");
+
+                inventory = inventory.filter((_, index) => !selectedIndices.includes(index));
+                renderInventory();
+                updatePagination();
+                showPopup("🗑️ Selected products deleted!");
+            } catch (error) {
+                console.error("❌ Error deleting products:", error);
+                showPopup("⚠️ Error deleting products");
+            }
+        }
+
+        function openModal() {
+            document.getElementById("edit-modal").style.display = "block";
+            document.getElementById("modal-overlay").style.display = "block";
+        }
+
+        function closeModal() {
+            document.getElementById("edit-modal").style.display = "none";
+            document.getElementById("modal-overlay").style.display = "none";
+        }
+
+        function showPopup(message) {
+            const popup = document.getElementById("popup");
+            popup.innerText = message;
+            popup.style.display = "block";
+            setTimeout(() => popup.style.display = "none", 3000);
+        }
+
+        document.getElementById("save-edit").addEventListener("click", (e) => {
+            e.preventDefault();
+            updateProduct();
+        });
+        document.getElementById("cancel-edit").addEventListener("click", (e) => {
+            e.preventDefault();
+            closeModal();
+        });
+        document.getElementById("bulkDelete").addEventListener("click", deleteSelectedProducts);
+        document.getElementById("selectAll").addEventListener("click", (e) => {
+            document.querySelectorAll(".product-checkbox").forEach(checkbox => checkbox.checked = e.target.checked);
+        });
+        document.getElementById("searchInput").addEventListener("input", (e) => {
+            const searchTerm = e.target.value.toLowerCase();
+            const filteredData = inventory.filter(item => 
+                item.name.toLowerCase().includes(searchTerm) || item.id.includes(searchTerm)
+            );
+            renderInventory(filteredData);
+        });
+        document.getElementById("prevPage").addEventListener("click", () => {
+            if (currentPage > 1) {
+                currentPage--;
+                renderInventory();
+                updatePagination();
+            }
+        });
+        document.getElementById("nextPage").addEventListener("click", () => {
+            const totalPages = Math.ceil(inventory.length / itemsPerPage);
+            if (currentPage < totalPages) {
+                currentPage++;
+                renderInventory();
+                updatePagination();
+            }
+        });
+
+        fetchInventory();
+    </script>
+</body>
+</html>

@@ -1,0 +1,398 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Smart Inventory Management</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/html5-qrcode"></script>
+    <link rel="stylesheet" href="styles.css">
+    <style>
+        .popup {
+            position: fixed;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background-color: rgba(0, 0, 0, 0.85);
+            color: #fff;
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-weight: bold;
+            display: none;
+            z-index: 1000;
+            animation: fadeInOut 3s ease-in-out;
+            box-shadow: 0px 4px 10px rgba(0, 0, 0, 0.3);
+        }
+
+        @media (max-width: 640px) {
+    #qr-reader {
+        width: 100% !important;
+        height: 100% !important;
+    }
+
+    #cameraSelect {
+        width: 70% !important;
+    }
+
+    #refreshCameras {
+        width: 25% !important;
+    }
+
+    #scanQR {
+        width: 100% !important;
+    }
+}
+
+        @keyframes fadeInOut {
+            0% {
+                opacity: 0;
+            }
+
+            10% {
+                opacity: 1;
+            }
+
+            90% {
+                opacity: 1;
+            }
+
+            100% {
+                opacity: 0;
+            }
+        }
+
+        th,
+        td {
+            padding: 10px;
+            text-align: center;
+        }
+
+        th {
+            background-color: #f3f4f6;
+            font-weight: bold;
+        }
+
+        tbody tr:nth-child(even) {
+            background-color: #f9fafb;
+        }
+
+        tbody tr:hover {
+            background-color: #e5e7eb;
+        }
+
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(0, 0, 0, 0.3);
+            border-radius: 50%;
+            border-top-color: #000;
+            animation: spin 1s ease-in-out infinite;
+        }
+
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
+        .btn {
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-weight: bold;
+            transition: all 0.3s ease;
+        }
+
+        .btn:hover {
+            opacity: 0.8;
+        }
+
+        .btn-green {
+            background-color: #34D399;
+            color: white;
+        }
+
+        .btn-green:hover {
+            background-color: #10B981;
+        }
+
+        .btn-purple {
+            background-color: #7C3AED;
+            color: white;
+        }
+
+        .btn-purple:hover {
+            background-color: #6D28D9;
+        }
+
+        .btn-red {
+            background-color: #EF4444;
+            color: white;
+        }
+
+        .btn-red:hover {
+            background-color: #DC2626;
+        }
+    </style>
+</head>
+
+<body class="bg-gray-100 p-6">
+    <div class="max-w-4xl mx-auto bg-white p-6 rounded-lg shadow-md">
+        <header class="mb-6 text-center">
+            <h1 class="text-2xl font-bold text-gray-800">📦 Smart Inventory Management</h1>
+        </header>
+
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
+            <div class="bg-blue-100 p-4 rounded-lg shadow text-center">
+                <h2 class="text-lg font-semibold">Total Products</h2>
+                <p id="total-products" class="text-2xl font-bold">0</p>
+            </div>
+            <div class="bg-red-100 p-4 rounded-lg shadow text-center">
+                <h2 class="text-lg font-semibold">Low Stock Alerts</h2>
+                <p id="low-stock-alerts" class="text-2xl font-bold">0</p>
+            </div>
+            <div class="bg-green-100 p-4 rounded-lg shadow text-center">
+                <h2 class="text-lg font-semibold">Scan QR/Barcode</h2>
+                <button id="scanQR" class="btn btn-green mt-2">
+                    📷 Scan Now
+                </button>
+            </div>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
+            <div class="bg-purple-100 p-4 rounded-lg shadow text-center">
+                <h2 class="text-lg font-semibold">View All Products</h2>
+                <button id="viewAllProducts" class="btn btn-purple mt-2">
+                    🔍 View All
+                </button>
+            </div>
+            <div class="bg-indigo-100 p-4 rounded-lg shadow text-center w-full max-w-md mx-auto">
+                <h2 class="text-lg font-semibold">Select Camera</h2>
+                <div class="flex items-center justify-center gap-2">
+                    <select id="cameraSelect" class="mt-2 w-full px-4 py-2 bg-indigo-500 text-white rounded-lg hover:bg-indigo-600 transition">
+                        <option value="">Select Camera</option>
+                    </select>
+                    <button id="refreshCameras" class="btn btn-purple mt-2">
+                        🔄
+                    </button>
+                </div>
+                <p id="cameraStatus" class="text-sm text-gray-600 mt-2"></p>
+            </div>
+
+            <div class="bg-yellow-100 p-4 rounded-lg shadow text-center">
+                <h2 class="text-lg font-semibold">Search Products</h2>
+                <input type="text" id="searchInput" class="mt-2 px-4 py-2 rounded-lg border border-gray-300" placeholder="Search by name or ID..." />
+            </div>
+        </div>
+
+        <h2 class="text-xl font-bold mb-3">Recent Scanned Products</h2>
+        <div class="overflow-auto">
+            <table class="w-full border border-gray-300 rounded-lg">
+                <thead>
+                    <tr>
+                        <th class="border">Product Id</th>
+                        <th class="border">Product Name</th>
+                        <th class="border">Stock</th>
+                    </tr>
+                </thead>
+                <tbody id="recent-products"></tbody>
+            </table>
+        </div>
+
+        <div id="qr-reader" class="hidden mt-6 relative"></div>
+        <button id="closeScanner" class="hidden btn btn-red mt-2">
+            ❌ Stop Scanning
+        </button>
+
+        <div id="popup" class="popup" aria-live="polite"></div>
+    </div>
+
+    <script>
+        let scanningPaused = false;
+        let html5QrCode = null;
+        let selectedCameraId = null;
+
+        async function playBeep() {
+            try {
+                const response = await fetch("http://localhost:4000/play-beep", { method: "POST" });
+                if (!response.ok) throw new Error("Failed to play beep sound");
+            } catch (error) {
+                console.error("🔇 Beep sound error:", error);
+            }
+        }
+
+        async function fetchInventory() {
+            try {
+                const response = await fetch("http://localhost:4000/products");
+                return response.ok ? await response.json() : [];
+            } catch (error) {
+                console.error("❌ Error fetching inventory:", error);
+                return [];
+            }
+        }
+
+        async function updateDashboard() {
+            const inventory = await fetchInventory();
+            document.getElementById("total-products").innerText = inventory.length;
+            document.getElementById("low-stock-alerts").innerText = inventory.filter(item => item.stock < 5).length;
+            renderRecentProducts(inventory);
+        }
+
+        function showPopup(message) {
+            const popup = document.getElementById("popup");
+            popup.innerText = message;
+            popup.style.display = "block";
+            setTimeout(() => popup.style.display = "none", 3000);
+        }
+
+        function renderRecentProducts(inventory) {
+            const recentList = document.getElementById("recent-products");
+            recentList.innerHTML = "";
+            inventory.slice(-5).forEach(item => {
+                recentList.innerHTML += ` 
+                    <tr>
+                        <td class="p-2 border">${item.id}</td>
+                        <td class="p-2 border">${item.name}</td>
+                        <td class="p-2 border">${item.stock}</td>
+                    </tr>`;
+            });
+        }
+
+        async function onScanSuccess(decodedText) {
+    if (scanningPaused) return;
+    scanningPaused = true;
+    await playBeep();
+
+    const inventory = await fetchInventory();
+    let existingProduct = inventory.find(item => item.id === decodedText);
+
+    if (existingProduct) {
+        existingProduct.stock += 1;
+        const response = await fetch(`http://localhost:4000/update-product/${existingProduct.id}`, {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ stock: existingProduct.stock })
+        });
+
+        if (response.ok) {
+            showPopup(`✅ Stock increased for: ${existingProduct.name}`);
+            updateDashboard();
+        } else {
+            showPopup("❌ Failed to update product.");
+        }
+    } else {
+        let productName = prompt(`Enter name for barcode ${decodedText}:`);
+
+        if (!productName) {
+            showPopup("❌ Scan cancelled. Product name required.");
+            scanningPaused = false;
+            return;
+        }
+
+        // Removing category prompt, directly saving product
+        const response = await fetch("http://localhost:4000/save-scan", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ id: decodedText, name: productName, stock: 1 })
+        });
+
+        if (response.ok) {
+            updateDashboard();
+        } else {
+            showPopup("❌ Failed to save new product.");
+        }
+    }
+
+    setTimeout(() => scanningPaused = false, 1000);
+}
+
+        // Camera Selection
+        async function populateCameraSelect() {
+            const cameraSelect = document.getElementById("cameraSelect");
+            const cameraStatus = document.getElementById("cameraStatus");
+            cameraSelect.innerHTML = '<option value="">Select Camera</option>';
+            cameraStatus.innerHTML = '<span class="loading"></span> Loading cameras...';
+
+            try {
+                const cameras = await Html5Qrcode.getCameras();
+                if (cameras.length === 0) {
+                    cameraStatus.innerText = "No cameras found.";
+                } else {
+                    cameras.forEach(camera => {
+                        cameraSelect.innerHTML += `<option value="${camera.id}">${camera.label}</option>`;
+                    });
+                    cameraStatus.innerText = `${cameras.length} camera(s) found.`;
+                }
+            } catch (error) {
+                console.error("❌ Error fetching cameras:", error);
+                cameraStatus.innerText = "Failed to load cameras. Please check permissions.";
+            }
+        }
+
+        document.getElementById("refreshCameras").addEventListener("click", populateCameraSelect);
+
+        document.getElementById("scanQR").addEventListener("click", async () => {
+    selectedCameraId = document.getElementById("cameraSelect").value;
+    if (!selectedCameraId) {
+        showPopup("❌ Please select a camera first.");
+        return;
+    }
+
+    // Show the QR scanner UI
+    document.getElementById("qr-reader").classList.remove("hidden");
+    document.getElementById("closeScanner").classList.remove("hidden");
+
+    if (!html5QrCode) html5QrCode = new Html5Qrcode("qr-reader");
+
+    // Start scanning using the selected camera
+    html5QrCode.start(selectedCameraId, {
+        fps: 15,
+        qrbox: { width: 250, height: 250 }
+    }, onScanSuccess, {
+        formatsToSupport: [
+            Html5QrcodeSupportedFormats.CODE_128,
+            Html5QrcodeSupportedFormats.CODE_39,
+            Html5QrcodeSupportedFormats.CODE_93
+        ]
+    }).catch(err => {
+        console.error("Error starting scanner: ", err);
+        showPopup("❌ Failed to start the camera.");
+    });
+});
+
+
+        document.getElementById("closeScanner").addEventListener("click", () => {
+            if (html5QrCode) {
+                html5QrCode.stop();
+                document.getElementById("qr-reader").classList.add("hidden");
+                document.getElementById("closeScanner").classList.add("hidden");
+            }
+        });
+
+        // View All Products
+        document.getElementById("viewAllProducts").addEventListener("click", () => {
+            window.location.href = "products.html";
+        });
+
+        // Search Products
+        let searchTimeout;
+        document.getElementById("searchInput").addEventListener("input", async (event) => {
+            clearTimeout(searchTimeout);
+            searchTimeout = setTimeout(async () => {
+                const searchTerm = event.target.value.toLowerCase();
+                const inventory = await fetchInventory();
+                const filteredProducts = inventory.filter(item =>
+                    item.name.toLowerCase().includes(searchTerm) || item.id.includes(searchTerm)
+                );
+                renderRecentProducts(filteredProducts);
+            }, 300); // 300ms debounce
+        });
+
+        // Initialize
+        populateCameraSelect();
+        updateDashboard();
+    </script>
+</body>
+
+</html>
