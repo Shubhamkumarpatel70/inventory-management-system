@@ -197,7 +197,7 @@ app.post("/save-scan",
 );
 
 // Start Server with WebSocket Support
-const server = app.listen(PORT, () => console.log(`🚀 Server running on http://localhost:${PORT}`));
+const server = app.listen(PORT, () => console.log(`🚀 Server running on port ${PORT}`));
 
 server.on("upgrade", (request, socket, head) => {
     wss.handleUpgrade(request, socket, head, (ws) => wss.emit("connection", ws, request));
