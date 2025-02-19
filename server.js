@@ -160,6 +160,65 @@ app.delete("/delete-product/:id",
     }
 );
 
+// Update product details (including name & stock)
+app.put("/edit-product/:id",
+    [
+        param("id").notEmpty().withMessage("Product ID is required"),
+        body("name").notEmpty().withMessage("Product name is required"),
+        body("stock").isInt({ min: 0 }).withMessage("Stock must be a non-negative integer"),
+    ],
+    async (req, res) => {
+        const errors = validationResult(req);
+        if (!errors.isEmpty()) return res.status(400).json({ errors: errors.array() });
+
+        try {
+            let { id } = req.params;
+            let { name, stock } = req.body;
+            let products = await loadProducts();
+            let productIndex = products.findIndex((p) => p.id === id);
+
+            if (productIndex === -1) return res.status(404).json({ error: "Product not found" });
+
+            // Update product details
+            products[productIndex].name = name;
+            products[productIndex].stock = stock;
+
+            await saveProducts(products);
+            broadcast("product-updated", products[productIndex]);
+
+            res.json({ message: "✅ Product updated successfully!", product: products[productIndex] });
+        } catch (error) {
+            res.status(500).json({ error: "Internal server error while updating product" });
+        }
+    }
+);
+
+// Delete product from JSON
+app.delete("/delete-product/:id",
+    param("id").notEmpty().withMessage("Product ID is required"),
+    async (req, res) => {
+        const errors = validationResult(req);
+        if (!errors.isEmpty()) return res.status(400).json({ errors: errors.array() });
+
+        try {
+            let productId = req.params.id.trim();
+            let products = await loadProducts();
+            let updatedProducts = products.filter((p) => p.id !== productId);
+
+            if (products.length === updatedProducts.length) {
+                return res.status(404).json({ error: "Product not found" });
+            }
+
+            await saveProducts(updatedProducts);
+            broadcast("product-deleted", productId);
+
+            res.json({ message: "✅ Product deleted successfully!" });
+        } catch (error) {
+            res.status(500).json({ error: "Internal server error while deleting product" });
+        }
+    }
+);
+
 // Play beep sound
 app.post("/play-beep", async (req, res) => {
     try {

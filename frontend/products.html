@@ -49,18 +49,6 @@
         .table-row:hover {
             background-color: #f9fafb;
         }
-        .loading {
-            display: inline-block;
-            width: 20px;
-            height: 20px;
-            border: 3px solid rgba(0, 0, 0, 0.3);
-            border-radius: 50%;
-            border-top-color: #000;
-            animation: spin 1s ease-in-out infinite;
-        }
-        @keyframes spin {
-            to { transform: rotate(360deg); }
-        }
     </style>
 </head>
 <body class="bg-gray-50 p-6 font-sans">
@@ -68,8 +56,8 @@
         <h1 class="text-3xl font-bold text-gray-900 mb-6 text-center">📦 All Products</h1>
 
         <!-- Search and Bulk Actions -->
-        <div class="flex justify-between items-center mb-6">
-            <input type="text" id="searchInput" class="w-1/2 p-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="Search by name or ID...">
+        <div class="flex flex-col md:flex-row justify-between items-center mb-6 gap-4">
+            <input type="text" id="searchInput" class="w-full md:w-1/2 p-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="Search by name or ID...">
             <button id="bulkDelete" class="px-6 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition duration-300">🗑️ Delete Selected</button>
         </div>
 
@@ -89,10 +77,6 @@
                 </thead>
                 <tbody id="full-inventory" class="text-sm text-gray-600"></tbody>
             </table>
-        </div>
-
-        <div class="text-center mt-8">
-            <a href="index.html" class="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition duration-300">🔙 Back to Dashboard</a>
         </div>
     </div>
 
@@ -117,8 +101,6 @@
     <script>
         let inventory = [];
         let editIndex = null;
-        let currentPage = 1;
-        const itemsPerPage = 10;
         const fullInventory = document.getElementById("full-inventory");
 
         async function fetchInventory() {
@@ -128,41 +110,28 @@
 
                 inventory = await response.json();
                 renderInventory();
-                updatePagination();
             } catch (error) {
                 console.error("❌ Error fetching products:", error);
                 showPopup("⚠️ Error fetching products");
             }
         }
 
-        function renderInventory(filteredData = inventory) {
-            const start = (currentPage - 1) * itemsPerPage;
-            const end = start + itemsPerPage;
-            const paginatedData = filteredData.slice(start, end);
-
-            fullInventory.innerHTML = paginatedData.length 
-                ? paginatedData.map((item, index) => `
+        function renderInventory() {
+            fullInventory.innerHTML = inventory.length 
+                ? inventory.map((item, index) => `
                     <tr class="table-row">
                         <td class="p-3 border">
-                            <input type="checkbox" class="form-checkbox h-4 w-4 text-blue-600 product-checkbox" data-index="${start + index}">
+                            <input type="checkbox" class="form-checkbox h-4 w-4 text-blue-600 product-checkbox" data-index="${index}">
                         </td>
                         <td class="p-3 border">${item.id}</td>
                         <td class="p-3 border">${item.name}</td>
                         <td class="p-3 border">${item.stock}</td>
                         <td class="p-3 border text-center">
-                            <button class="px-4 py-2 bg-yellow-500 text-white rounded-lg hover:bg-yellow-600 transition duration-300" onclick="editProduct(${start + index})">✏️ Edit</button>
-                            <button class="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition duration-300 ml-2" onclick="deleteProduct(${start + index})">🗑️ Delete</button>
+                            <button class="px-4 py-2 bg-yellow-500 text-white rounded-lg hover:bg-yellow-600 transition duration-300" onclick="editProduct(${index})">✏️ Edit</button>
                         </td>
                     </tr>
                 `).join("")
                 : `<tr><td colspan="5" class="text-center p-4 text-gray-500">No products available.</td></tr>`;
-        }
-
-        function updatePagination() {
-            const totalPages = Math.ceil(inventory.length / itemsPerPage);
-            document.getElementById("pageInfo").innerText = `Page ${currentPage} of ${totalPages}`;
-            document.getElementById("prevPage").disabled = currentPage === 1;
-            document.getElementById("nextPage").disabled = currentPage === totalPages;
         }
 
         function editProduct(index) {
@@ -173,84 +142,28 @@
         }
 
         async function updateProduct() {
-            const updatedProduct = {
-                id: inventory[editIndex].id,
-                name: document.getElementById("edit-name").value.trim(),
-                stock: parseInt(document.getElementById("edit-stock").value),
-            };
+            inventory[editIndex].name = document.getElementById("edit-name").value.trim();
+            inventory[editIndex].stock = parseInt(document.getElementById("edit-stock").value);
 
-            if (!updatedProduct.name || isNaN(updatedProduct.stock) || updatedProduct.stock < 0) {
-                showPopup("⚠️ Invalid product details");
-                return;
-            }
-
-            try {
-                const response = await fetch("https://inventory-management-system-1-2c9n.onrender.com/update-product", {
-                    method: "PUT",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify(updatedProduct),
-                });
-
-                if (!response.ok) throw new Error("Failed to update product");
-
-                inventory[editIndex] = updatedProduct;
-                renderInventory();
-                closeModal();
-                showPopup("✅ Product updated!");
-            } catch (error) {
-                console.error("❌ Error updating product:", error);
-                showPopup("⚠️ Error updating product");
-            }
-        }
-
-        async function deleteProduct(index) {
-            if (!confirm("Are you sure you want to delete this product?")) return;
-
-            try {
-                const response = await fetch(`https://inventory-management-system-1-2c9n.onrender.com/delete-product/${inventory[index].id}`, {
-                    method: "DELETE",
-                });
-
-                if (!response.ok) throw new Error("Failed to delete product");
-
-                inventory.splice(index, 1);
-                renderInventory();
-                updatePagination();
-                showPopup("🗑️ Product deleted!");
-            } catch (error) {
-                console.error("❌ Error deleting product:", error);
-                showPopup("⚠️ Error deleting product");
-            }
+            closeModal();
+            showPopup("✅ Product updated!");
+            renderInventory();
         }
 
         async function deleteSelectedProducts() {
-            const selectedIndices = Array.from(document.querySelectorAll(".product-checkbox:checked"))
-                .map(checkbox => parseInt(checkbox.dataset.index));
-
-            if (selectedIndices.length === 0) {
+            const selected = document.querySelectorAll(".product-checkbox:checked");
+            if (selected.length === 0) {
                 showPopup("⚠️ No products selected");
                 return;
             }
 
-            if (!confirm("Are you sure you want to delete the selected products?")) return;
+            selected.forEach(checkbox => {
+                const index = parseInt(checkbox.dataset.index);
+                inventory.splice(index, 1);
+            });
 
-            try {
-                const response = await fetch("http://localhost:3000/delete-products", {
-                    method: "DELETE",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ ids: selectedIndices.map(index => inventory[index].id) }),
-                });
-
-                if (!response.ok) throw new Error("Failed to delete products");
-
-                inventory = inventory.filter((_, index) => !selectedIndices.includes(index));
-                renderInventory();
-                updatePagination();
-                showPopup("🗑️ Selected products deleted!");
-            } catch (error) {
-                console.error("❌ Error deleting products:", error);
-                showPopup("⚠️ Error deleting products");
-            }
+            renderInventory();
+            showPopup("🗑️ Selected products deleted!");
         }
 
         function openModal() {
@@ -265,46 +178,12 @@
 
         function showPopup(message) {
             const popup = document.getElementById("popup");
-            popup.innerText = message;
+            popup.textContent = message;
             popup.style.display = "block";
             setTimeout(() => popup.style.display = "none", 3000);
         }
 
-        document.getElementById("save-edit").addEventListener("click", (e) => {
-            e.preventDefault();
-            updateProduct();
-        });
-        document.getElementById("cancel-edit").addEventListener("click", (e) => {
-            e.preventDefault();
-            closeModal();
-        });
         document.getElementById("bulkDelete").addEventListener("click", deleteSelectedProducts);
-        document.getElementById("selectAll").addEventListener("click", (e) => {
-            document.querySelectorAll(".product-checkbox").forEach(checkbox => checkbox.checked = e.target.checked);
-        });
-        document.getElementById("searchInput").addEventListener("input", (e) => {
-            const searchTerm = e.target.value.toLowerCase();
-            const filteredData = inventory.filter(item => 
-                item.name.toLowerCase().includes(searchTerm) || item.id.includes(searchTerm)
-            );
-            renderInventory(filteredData);
-        });
-        document.getElementById("prevPage").addEventListener("click", () => {
-            if (currentPage > 1) {
-                currentPage--;
-                renderInventory();
-                updatePagination();
-            }
-        });
-        document.getElementById("nextPage").addEventListener("click", () => {
-            const totalPages = Math.ceil(inventory.length / itemsPerPage);
-            if (currentPage < totalPages) {
-                currentPage++;
-                renderInventory();
-                updatePagination();
-            }
-        });
-
         fetchInventory();
     </script>
 </body>
