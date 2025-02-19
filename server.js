@@ -211,8 +211,8 @@ app.post(
 );
 
 // Start Server with WebSocket Support
-const server = app.listen(PORT, () => {
-    console.log(`🚀 Server running on http://localhost:${PORT}`);
+app.listen(PORT, () => {
+    console.log(`🚀 Server is running on port ${PORT}`);
 });
 
 server.on("upgrade", (request, socket, head) => {
