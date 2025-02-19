@@ -213,14 +213,15 @@
         let html5QrCode = null;
         let selectedCameraId = null;
 
-        async function playBeep() {
-            try {
-                const response = await fetch("https://inventory-management-system-1-2c9n.onrender.com/play-beep", { method: "POST" });
-                if (!response.ok) throw new Error("Failed to play beep sound");
-            } catch (error) {
-                console.error("🔇 Beep sound error:", error);
-            }
-        }
+        function playBeep() {
+    try {
+        const beep = new Audio("/audio/beep.wav");  // Ensure the path is correct
+        beep.play().catch(error => console.error("🔇 Beep sound error:", error));
+    } catch (error) {
+        console.error("🔇 Beep sound error:", error);
+    }
+}
+
 
         async function fetchInventory() {
             try {
@@ -262,9 +263,8 @@
         async function onScanSuccess(decodedText) {
     if (scanningPaused) return;
     scanningPaused = true;
-    await playBeep();
-
-    const beep = new Audio("./audio/beep.wav");
+    
+    playBeep();  // Play beep locally
 
     const inventory = await fetchInventory();
     let existingProduct = inventory.find(item => item.id === decodedText);
@@ -278,21 +278,19 @@
         });
 
         if (response.ok) {
-            showPopup(`✅ Stock Update for: ${existingProduct.name}`);
+            showPopup(`✅ Stock Updated for: ${existingProduct.name}`);
             updateDashboard();
         } else {
             showPopup("❌ Failed to update product.");
         }
     } else {
         let productName = prompt(`Enter name for barcode ${decodedText}:`);
-
         if (!productName) {
             showPopup("❌ Scan cancelled. Product name required.");
             scanningPaused = false;
             return;
         }
 
-        // Removing category prompt, directly saving product
         const response = await fetch("https://inventory-management-system-1-2c9n.onrender.com/save-scan", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -308,6 +306,7 @@
 
     setTimeout(() => scanningPaused = false, 1000);
 }
+
 
         // Camera Selection
         async function populateCameraSelect() {

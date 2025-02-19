@@ -13,9 +13,9 @@ const BEEP_SOUND_PATH = path.join(__dirname, "frontend", "audio", "beep.wav");
 
 // WebSocket setup
 const wss = new WebSocket.Server({ noServer: true });
-let clients = new Set(); // Use Set to prevent duplicate connections
+const clients = new Set();
 
-// Load products from file
+// Utility: Load products from file
 const loadProducts = async () => {
     try {
         await fs.access(DATA_FILE).catch(() => fs.writeFile(DATA_FILE, JSON.stringify([]), "utf8"));
@@ -27,7 +27,7 @@ const loadProducts = async () => {
     }
 };
 
-// Save products to file
+// Utility: Save products to file
 const saveProducts = async (products) => {
     try {
         await fs.writeFile(DATA_FILE, JSON.stringify(products, null, 2), "utf8");
@@ -37,11 +37,20 @@ const saveProducts = async (products) => {
     }
 };
 
+// Utility: Send WebSocket updates
+const broadcast = (type, data) => {
+    clients.forEach(client => {
+        if (client.readyState === WebSocket.OPEN) {
+            client.send(JSON.stringify({ type, data }));
+        }
+    });
+};
+
 // WebSocket connection
 wss.on("connection", (ws) => {
     clients.add(ws);
 
-    ws.on("message", (message) => console.log("Message received:", message));
+    ws.on("message", (message) => console.log("📩 Message received:", message));
 
     ws.on("close", () => {
         clients.delete(ws);
@@ -52,6 +61,8 @@ wss.on("connection", (ws) => {
 app.use(express.static(path.join(__dirname, "frontend")));
 app.use(cors());
 app.use(express.json());
+
+// API Routes
 
 // Get all products
 app.get("/products", async (req, res) => {
@@ -78,20 +89,23 @@ app.post("/add-product",
             let products = await loadProducts();
             let product = products.find((p) => p.id === id);
 
-            if (product) product.stock += stock;
-            else products.push({ id, name, stock });
+            if (product) {
+                product.stock += stock;
+            } else {
+                products.push({ id, name, stock });
+            }
 
             await saveProducts(products);
-            clients.forEach(client => client.send(JSON.stringify({ type: 'product-updated', products })));
+            broadcast("product-updated", products);
 
-            res.json({ message: "Product saved successfully!", products });
+            res.json({ message: "✅ Product saved successfully!", products });
         } catch (error) {
             res.status(500).json({ error: "Internal server error while saving product" });
         }
     }
 );
 
-// Update product
+// Update product stock
 app.put("/update-product/:id",
     [
         param("id").notEmpty().withMessage("Product ID is required"),
@@ -105,15 +119,15 @@ app.put("/update-product/:id",
             let { id } = req.params;
             let { stock } = req.body;
             let products = await loadProducts();
-            let productIndex = products.findIndex((p) => p.id === id);
+            let product = products.find((p) => p.id === id);
 
-            if (productIndex === -1) return res.status(404).json({ error: "Product not found" });
+            if (!product) return res.status(404).json({ error: "Product not found" });
 
-            products[productIndex].stock = stock;
+            product.stock = stock;
             await saveProducts(products);
-            clients.forEach(client => client.send(JSON.stringify({ type: 'product-updated', products })));
+            broadcast("product-updated", products);
 
-            res.json({ message: "Product updated successfully!", products });
+            res.json({ message: "✅ Product updated successfully!", products });
         } catch (error) {
             res.status(500).json({ error: "Internal server error while updating product" });
         }
@@ -129,12 +143,17 @@ app.delete("/delete-product/:id",
 
         try {
             let productId = req.params.id.trim();
-            let products = (await loadProducts()).filter((p) => p.id !== productId);
+            let products = await loadProducts();
+            let updatedProducts = products.filter((p) => p.id !== productId);
 
-            await saveProducts(products);
-            clients.forEach(client => client.send(JSON.stringify({ type: 'product-deleted', productId })));
+            if (products.length === updatedProducts.length) {
+                return res.status(404).json({ error: "Product not found" });
+            }
 
-            res.json({ message: "Product deleted successfully!" });
+            await saveProducts(updatedProducts);
+            broadcast("product-deleted", productId);
+
+            res.json({ message: "✅ Product deleted successfully!" });
         } catch (error) {
             res.status(500).json({ error: "Internal server error while deleting product" });
         }
@@ -158,22 +177,21 @@ app.post("/play-beep", async (req, res) => {
                 command = `aplay "${BEEP_SOUND_PATH}" || paplay "${BEEP_SOUND_PATH}"`;
         }
 
-        exec(command, (err, stdout, stderr) => {
+        exec(command, (err) => {
             if (err) {
-                console.error("🔇 Beep sound error:", stderr || err.message);
+                console.error("🔇 Beep sound error:", err.message);
                 return res.status(500).json({ error: "Error playing beep sound" });
             }
-            res.json({ message: "Beep sound played!" });
+            res.json({ message: "🔊 Beep sound played!" });
         });
-        
+
     } catch (error) {
         console.error("❌ Beep sound file not found:", error.message);
         res.status(404).json({ error: "Beep sound file not found" });
     }
 });
 
-console.log("Beep sound file path:", BEEP_SOUND_PATH);
-// Save scan
+// Save scan (increments stock if product exists)
 app.post("/save-scan",
     [
         body("id").notEmpty().withMessage("Product ID is required"),
@@ -188,15 +206,16 @@ app.post("/save-scan",
             let products = await loadProducts();
             let product = products.find((p) => p.id === id);
 
-            if (product) product.stock += 1;
-            else {
+            if (product) {
+                product.stock += 1;
+            } else {
                 if (!name) return res.status(400).json({ error: "Product name is required for a new entry" });
                 product = { id, name, stock: 1 };
                 products.push(product);
             }
 
             await saveProducts(products);
-            clients.forEach(client => client.send(JSON.stringify({ type: 'scan-saved', product })));
+            broadcast("scan-saved", product);
 
             res.json({ message: "✅ Scan saved", product });
         } catch (error) {
