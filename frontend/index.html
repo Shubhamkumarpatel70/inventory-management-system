@@ -215,7 +215,7 @@
 
         async function playBeep() {
             try {
-                const response = await fetch("http://localhost:4000/play-beep", { method: "POST" });
+                const response = await fetch("http://localhost:10000/play-beep", { method: "POST" });
                 if (!response.ok) throw new Error("Failed to play beep sound");
             } catch (error) {
                 console.error("🔇 Beep sound error:", error);
@@ -224,7 +224,7 @@
 
         async function fetchInventory() {
             try {
-                const response = await fetch("http://localhost:4000/products");
+                const response = await fetch("http://localhost:10000/products");
                 return response.ok ? await response.json() : [];
             } catch (error) {
                 console.error("❌ Error fetching inventory:", error);
@@ -269,7 +269,7 @@
 
     if (existingProduct) {
         existingProduct.stock += 1;
-        const response = await fetch(`http://localhost:4000/update-product/${existingProduct.id}`, {
+        const response = await fetch(`http://localhost:10000/update-product/${existingProduct.id}`, {
             method: "PUT",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ stock: existingProduct.stock })
@@ -291,7 +291,7 @@
         }
 
         // Removing category prompt, directly saving product
-        const response = await fetch("http://localhost:4000/save-scan", {
+        const response = await fetch("http://localhost:10000/save-scan", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ id: decodedText, name: productName, stock: 1 })
