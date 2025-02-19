@@ -181,6 +181,10 @@ app.post("/play-beep", async (req, res) => {
     }
 });
 
+app.get("/", (req, res) => {
+    res.send("Welcome to the Inventory Management System API!");
+});
+
 // Start Server
 server.listen(PORT, () => {
     console.log(`🚀 Server is running on port ${PORT}`);
