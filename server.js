@@ -1,5 +1,5 @@
 const express = require("express");
-const http = require("http"); // ✅ Required for WebSocket upgrade handling
+const http = require("http");
 const fs = require("fs").promises;
 const cors = require("cors");
 const path = require("path");
@@ -8,32 +8,33 @@ const { body, param, validationResult } = require("express-validator");
 const WebSocket = require("ws");
 
 const app = express();
-const server = http.createServer(app); // ✅ Create HTTP server
-const PORT = process.env.PORT || 10000; 
+const server = http.createServer(app);
+const PORT = process.env.PORT || 10000;
 const DATA_FILE = path.join(__dirname, "products.json");
 const BEEP_SOUND_PATH = path.join(__dirname, "frontend", "audio", "beep.mp3");
 
-// WebSocket setup
+// WebSocket Setup
 const wss = new WebSocket.Server({ server });
-let clients = [];
+let clients = new Set();
 
 wss.on("connection", (ws) => {
-    clients.push(ws);
+    clients.add(ws);
+    console.log("✅ New WebSocket client connected.");
 
     ws.on("message", (message) => {
         try {
             console.log("📩 WebSocket Message Received:", message);
         } catch (error) {
-            console.error("❌ Error processing WebSocket message:", error);
+            console.error("❌ WebSocket message error:", error);
         }
     });
 
     ws.on("close", () => {
-        clients = clients.filter(client => client !== ws);
+        clients.delete(ws);
     });
 });
 
-// Function to load products
+// Helper Functions
 const loadProducts = async () => {
     try {
         await fs.access(DATA_FILE).catch(() => fs.writeFile(DATA_FILE, JSON.stringify([]), "utf8"));
@@ -45,7 +46,6 @@ const loadProducts = async () => {
     }
 };
 
-// Function to save products
 const saveProducts = async (products) => {
     try {
         await fs.writeFile(DATA_FILE, JSON.stringify(products, null, 2), "utf8");
@@ -55,12 +55,24 @@ const saveProducts = async (products) => {
     }
 };
 
-// Middleware
-app.use(express.static(path.join(__dirname, "frontend")));
-app.use(cors());
-app.use(express.json());
+// Send Updates to WebSocket Clients
+const broadcast = (data) => {
+    const message = JSON.stringify(data);
+    clients.forEach(client => {
+        if (client.readyState === WebSocket.OPEN) {
+            client.send(message);
+        }
+    });
+};
 
-// Get all products
+// Middleware
+app.use(cors({ origin: "*" }));
+app.use(express.json());
+app.use(express.static(path.join(__dirname, "frontend")));
+
+// Routes
+
+// Get All Products
 app.get("/products", async (req, res) => {
     try {
         const products = await loadProducts();
@@ -70,7 +82,7 @@ app.get("/products", async (req, res) => {
     }
 });
 
-// Add or update product
+// Add or Update Product
 app.post(
     "/add-product",
     [
@@ -94,7 +106,7 @@ app.post(
             }
 
             await saveProducts(products);
-            clients.forEach(client => client.send(JSON.stringify({ type: "product-updated", products })));
+            broadcast({ type: "product-updated", products });
 
             res.json({ message: "Product saved successfully!", products });
         } catch (error) {
@@ -103,7 +115,7 @@ app.post(
     }
 );
 
-// Update product
+// Update Product
 app.put(
     "/update-product/:id",
     [
@@ -124,7 +136,7 @@ app.put(
 
             products[productIndex].stock = stock;
             await saveProducts(products);
-            clients.forEach(client => client.send(JSON.stringify({ type: "product-updated", products })));
+            broadcast({ type: "product-updated", products });
 
             res.json({ message: "Product updated successfully!", products });
         } catch (error) {
@@ -133,7 +145,7 @@ app.put(
     }
 );
 
-// Delete product
+// Delete Product
 app.delete(
     "/delete-product/:id",
     param("id").notEmpty().withMessage("Product ID is required"),
@@ -143,10 +155,15 @@ app.delete(
 
         try {
             const productId = req.params.id.trim();
-            const products = (await loadProducts()).filter((p) => p.id !== productId);
+            let products = await loadProducts();
+            const filteredProducts = products.filter((p) => p.id !== productId);
 
-            await saveProducts(products);
-            clients.forEach(client => client.send(JSON.stringify({ type: "product-deleted", productId })));
+            if (filteredProducts.length === products.length) {
+                return res.status(404).json({ error: "Product not found" });
+            }
+
+            await saveProducts(filteredProducts);
+            broadcast({ type: "product-deleted", productId });
 
             res.json({ message: "Product deleted successfully!" });
         } catch (error) {
@@ -155,7 +172,7 @@ app.delete(
     }
 );
 
-// Play beep sound
+// Play Beep Sound
 app.post("/play-beep", async (req, res) => {
     try {
         await fs.access(BEEP_SOUND_PATH);
@@ -181,6 +198,7 @@ app.post("/play-beep", async (req, res) => {
     }
 });
 
+// Homepage Route
 app.get("/", (req, res) => {
     res.send("Welcome to the Inventory Management System API!");
 });
