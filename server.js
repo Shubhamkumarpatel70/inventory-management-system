@@ -1,4 +1,5 @@
 const express = require("express");
+const http = require("http"); // ✅ Required for WebSocket upgrade handling
 const fs = require("fs").promises;
 const cors = require("cors");
 const path = require("path");
@@ -7,15 +8,32 @@ const { body, param, validationResult } = require("express-validator");
 const WebSocket = require("ws");
 
 const app = express();
-const PORT = process.env.PORT || 10000; // Use Render's assigned port
+const server = http.createServer(app); // ✅ Create HTTP server
+const PORT = process.env.PORT || 10000; 
 const DATA_FILE = path.join(__dirname, "products.json");
 const BEEP_SOUND_PATH = path.join(__dirname, "frontend", "audio", "beep.mp3");
 
 // WebSocket setup
-const wss = new WebSocket.Server({ noServer: true });
+const wss = new WebSocket.Server({ server });
 let clients = [];
 
-// Function to load products safely
+wss.on("connection", (ws) => {
+    clients.push(ws);
+
+    ws.on("message", (message) => {
+        try {
+            console.log("📩 WebSocket Message Received:", message);
+        } catch (error) {
+            console.error("❌ Error processing WebSocket message:", error);
+        }
+    });
+
+    ws.on("close", () => {
+        clients = clients.filter(client => client !== ws);
+    });
+});
+
+// Function to load products
 const loadProducts = async () => {
     try {
         await fs.access(DATA_FILE).catch(() => fs.writeFile(DATA_FILE, JSON.stringify([]), "utf8"));
@@ -27,7 +45,7 @@ const loadProducts = async () => {
     }
 };
 
-// Function to save products safely
+// Function to save products
 const saveProducts = async (products) => {
     try {
         await fs.writeFile(DATA_FILE, JSON.stringify(products, null, 2), "utf8");
@@ -37,20 +55,7 @@ const saveProducts = async (products) => {
     }
 };
 
-
-// WebSocket connection
-wss.on("connection", (ws) => {
-    clients.push(ws);
-
-    ws.on("message", (message) => {
-        console.log("Message received:", message);
-    });
-
-    ws.on("close", () => {
-        clients = clients.filter(client => client !== ws);
-    });
-});
-
+// Middleware
 app.use(express.static(path.join(__dirname, "frontend")));
 app.use(cors());
 app.use(express.json());
@@ -78,9 +83,9 @@ app.post(
         if (!errors.isEmpty()) return res.status(400).json({ errors: errors.array() });
 
         try {
-            let { id, name, stock } = req.body;
-            let products = await loadProducts();
-            let product = products.find((p) => p.id === id);
+            const { id, name, stock } = req.body;
+            const products = await loadProducts();
+            const product = products.find((p) => p.id === id);
 
             if (product) {
                 product.stock += stock;
@@ -89,7 +94,7 @@ app.post(
             }
 
             await saveProducts(products);
-            clients.forEach(client => client.send(JSON.stringify({ type: 'product-updated', products })));
+            clients.forEach(client => client.send(JSON.stringify({ type: "product-updated", products })));
 
             res.json({ message: "Product saved successfully!", products });
         } catch (error) {
@@ -110,16 +115,16 @@ app.put(
         if (!errors.isEmpty()) return res.status(400).json({ errors: errors.array() });
 
         try {
-            let { id } = req.params;
-            let { stock } = req.body;
-            let products = await loadProducts();
-            let productIndex = products.findIndex((p) => p.id === id);
+            const { id } = req.params;
+            const { stock } = req.body;
+            const products = await loadProducts();
+            const productIndex = products.findIndex((p) => p.id === id);
 
             if (productIndex === -1) return res.status(404).json({ error: "Product not found" });
 
             products[productIndex].stock = stock;
             await saveProducts(products);
-            clients.forEach(client => client.send(JSON.stringify({ type: 'product-updated', products })));
+            clients.forEach(client => client.send(JSON.stringify({ type: "product-updated", products })));
 
             res.json({ message: "Product updated successfully!", products });
         } catch (error) {
@@ -137,11 +142,11 @@ app.delete(
         if (!errors.isEmpty()) return res.status(400).json({ errors: errors.array() });
 
         try {
-            let productId = req.params.id.trim();
-            let products = (await loadProducts()).filter((p) => p.id !== productId);
+            const productId = req.params.id.trim();
+            const products = (await loadProducts()).filter((p) => p.id !== productId);
 
             await saveProducts(products);
-            clients.forEach(client => client.send(JSON.stringify({ type: 'product-deleted', productId })));
+            clients.forEach(client => client.send(JSON.stringify({ type: "product-deleted", productId })));
 
             res.json({ message: "Product deleted successfully!" });
         } catch (error) {
@@ -157,7 +162,7 @@ app.post("/play-beep", async (req, res) => {
 
         let command;
         if (process.platform === "win32") {
-            command = `start wmplayer /play /close "${BEEP_SOUND_PATH}"`;
+            command = `powershell -c (New-Object Media.SoundPlayer '${BEEP_SOUND_PATH}').PlaySync();`;
         } else if (process.platform === "darwin") {
             command = `afplay "${BEEP_SOUND_PATH}"`;
         } else {
@@ -176,47 +181,7 @@ app.post("/play-beep", async (req, res) => {
     }
 });
 
-// Save scan
-app.post(
-    "/save-scan",
-    [
-        body("id").notEmpty().withMessage("Product ID is required"),
-        body("name").optional().notEmpty().withMessage("Product name cannot be empty"),
-    ],
-    async (req, res) => {
-        const errors = validationResult(req);
-        if (!errors.isEmpty()) return res.status(400).json({ errors: errors.array() });
-
-        try {
-            let { id, name } = req.body;
-            let products = await loadProducts();
-            let product = products.find((p) => p.id === id);
-
-            if (product) {
-                product.stock += 1;
-            } else {
-                if (!name) return res.status(400).json({ error: "Product name is required for a new entry" });
-                product = { id, name, stock: 1 };
-                products.push(product);
-            }
-
-            await saveProducts(products);
-            clients.forEach(client => client.send(JSON.stringify({ type: 'scan-saved', product })));
-
-            res.json({ message: "Scan saved", product });
-        } catch (error) {
-            res.status(500).json({ error: "Internal server error while saving scan" });
-        }
-    }
-);
-
-// Start Server with WebSocket Support
-app.listen(PORT, () => {
+// Start Server
+server.listen(PORT, () => {
     console.log(`🚀 Server is running on port ${PORT}`);
-});
-
-server.on("upgrade", (request, socket, head) => {
-    wss.handleUpgrade(request, socket, head, (ws) => {
-        wss.emit("connection", ws, request);
-    });
 });
