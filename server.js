@@ -7,7 +7,7 @@ const { body, param, validationResult } = require("express-validator");
 const WebSocket = require("ws");
 
 const app = express();
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT || 4000;
 const DATA_FILE = path.join(__dirname, "products.json");
 const BEEP_SOUND_PATH = path.join(__dirname, "frontend", "audio", "beep.wav");
 
