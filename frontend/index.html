@@ -8,13 +8,15 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/html5-qrcode"></script>
     <link rel="stylesheet" href="styles.css">
+
     <style>
+        /* Custom pop-up notification */
         .popup {
             position: fixed;
             top: 20px;
             left: 50%;
             transform: translateX(-50%);
-            background-color: rgba(0, 0, 0, 0.85);
+            background-color: rgba(0, 0, 0, 0.9);
             color: #fff;
             padding: 12px 24px;
             border-radius: 8px;
@@ -22,186 +24,108 @@
             display: none;
             z-index: 1000;
             animation: fadeInOut 3s ease-in-out;
-            box-shadow: 0px 4px 10px rgba(0, 0, 0, 0.3);
+            box-shadow: 0px 4px 12px rgba(0, 0, 0, 0.3);
         }
-
-        @media (max-width: 640px) {
-    #qr-reader {
-        width: 100% !important;
-        height: 100% !important;
-    }
-
-    #cameraSelect {
-        width: 70% !important;
-    }
-
-    #refreshCameras {
-        width: 25% !important;
-    }
-
-    #scanQR {
-        width: 100% !important;
-    }
-}
 
         @keyframes fadeInOut {
-            0% {
-                opacity: 0;
-            }
-
-            10% {
-                opacity: 1;
-            }
-
-            90% {
-                opacity: 1;
-            }
-
-            100% {
-                opacity: 0;
-            }
+            0% { opacity: 0; }
+            10% { opacity: 1; }
+            90% { opacity: 1; }
+            100% { opacity: 0; }
         }
 
-        th,
-        td {
-            padding: 10px;
-            text-align: center;
-        }
-
-        th {
-            background-color: #f3f4f6;
-            font-weight: bold;
-        }
-
-        tbody tr:nth-child(even) {
-            background-color: #f9fafb;
-        }
-
-        tbody tr:hover {
-            background-color: #e5e7eb;
-        }
-
+        /* Loader animation */
         .loading {
             display: inline-block;
-            width: 20px;
-            height: 20px;
+            width: 24px;
+            height: 24px;
             border: 3px solid rgba(0, 0, 0, 0.3);
             border-radius: 50%;
             border-top-color: #000;
-            animation: spin 1s ease-in-out infinite;
+            animation: spin 1s linear infinite;
         }
 
         @keyframes spin {
-            to {
-                transform: rotate(360deg);
-            }
+            to { transform: rotate(360deg); }
         }
 
-        .btn {
-            padding: 12px 24px;
-            border-radius: 8px;
-            font-weight: bold;
-            transition: all 0.3s ease;
-        }
-
-        .btn:hover {
-            opacity: 0.8;
-        }
-
-        .btn-green {
-            background-color: #34D399;
-            color: white;
-        }
-
-        .btn-green:hover {
-            background-color: #10B981;
-        }
-
-        .btn-purple {
-            background-color: #7C3AED;
-            color: white;
-        }
-
-        .btn-purple:hover {
-            background-color: #6D28D9;
-        }
-
-        .btn-red {
-            background-color: #EF4444;
-            color: white;
-        }
-
-        .btn-red:hover {
-            background-color: #DC2626;
+        /* Responsive adjustments */
+        @media (max-width: 640px) {
+            #qr-reader { width: 100% !important; height: auto !important; }
+            #cameraSelect { width: 80% !important; }
+            #refreshCameras { width: 20% !important; }
+            #scanQR { width: 100% !important; }
         }
     </style>
 </head>
 
 <body class="bg-gray-100 p-6">
-    <div class="max-w-4xl mx-auto bg-white p-6 rounded-lg shadow-md">
+    <div class="max-w-5xl mx-auto bg-white p-8 rounded-lg shadow-lg">
         <header class="mb-6 text-center">
-            <h1 class="text-2xl font-bold text-gray-800">📦 Smart Inventory Management</h1>
+            <h1 class="text-3xl font-bold text-gray-800">📦 Smart Inventory Management</h1>
         </header>
 
-        <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
-            <div class="bg-blue-100 p-4 rounded-lg shadow text-center">
+        <!-- Dashboard Stats -->
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+            <div class="bg-blue-500 text-white p-5 rounded-lg shadow text-center">
                 <h2 class="text-lg font-semibold">Total Products</h2>
-                <p id="total-products" class="text-2xl font-bold">0</p>
+                <p id="total-products" class="text-3xl font-bold mt-2">0</p>
             </div>
-            <div class="bg-red-100 p-4 rounded-lg shadow text-center">
+            <div class="bg-red-500 text-white p-5 rounded-lg shadow text-center">
                 <h2 class="text-lg font-semibold">Low Stock Alerts</h2>
-                <p id="low-stock-alerts" class="text-2xl font-bold">0</p>
+                <p id="low-stock-alerts" class="text-3xl font-bold mt-2">0</p>
             </div>
-            <div class="bg-green-100 p-4 rounded-lg shadow text-center">
+            <div class="bg-green-500 text-white p-5 rounded-lg shadow text-center">
                 <h2 class="text-lg font-semibold">Scan QR/Barcode</h2>
-                <button id="scanQR" class="btn btn-green mt-2">
+                <button id="scanQR" class="btn bg-white text-green-600 font-bold py-2 px-4 rounded-lg mt-3 hover:bg-gray-200">
                     📷 Scan Now
                 </button>
             </div>
         </div>
 
-        <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
-            <div class="bg-purple-100 p-4 rounded-lg shadow text-center">
+        <!-- Actions & Camera Selection -->
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+            <div class="bg-purple-500 text-white p-5 rounded-lg shadow text-center">
                 <h2 class="text-lg font-semibold">View All Products</h2>
-                <button id="viewAllProducts" class="btn btn-purple mt-2">
+                <button id="viewAllProducts" class="btn bg-white text-purple-600 font-bold py-2 px-4 rounded-lg mt-3 hover:bg-gray-200">
                     🔍 View All
                 </button>
             </div>
-            <div class="bg-indigo-100 p-4 rounded-lg shadow text-center w-full max-w-md mx-auto">
+            <div class="bg-indigo-500 text-white p-5 rounded-lg shadow text-center">
                 <h2 class="text-lg font-semibold">Select Camera</h2>
                 <div class="flex items-center justify-center gap-2">
-                    <select id="cameraSelect" class="mt-2 w-full px-4 py-2 bg-indigo-500 text-white rounded-lg hover:bg-indigo-600 transition">
+                    <select id="cameraSelect" class="mt-3 w-full px-4 py-2 bg-white text-indigo-600 rounded-lg">
                         <option value="">Select Camera</option>
                     </select>
-                    <button id="refreshCameras" class="btn btn-purple mt-2">
+                    <button id="refreshCameras" class="btn bg-white text-indigo-600 font-bold py-2 px-4 rounded-lg hover:bg-gray-200">
                         🔄
                     </button>
                 </div>
-                <p id="cameraStatus" class="text-sm text-gray-600 mt-2"></p>
             </div>
-
-            <div class="bg-yellow-100 p-4 rounded-lg shadow text-center">
+            <div class="bg-yellow-500 text-white p-5 rounded-lg shadow text-center">
                 <h2 class="text-lg font-semibold">Search Products</h2>
-                <input type="text" id="searchInput" class="mt-2 px-4 py-2 rounded-lg border border-gray-300" placeholder="Search by name or ID..." />
+                <input type="text" id="searchInput" class="mt-3 px-4 py-2 rounded-lg border-none bg-white text-gray-800 w-full" placeholder="Search by name or ID..." />
             </div>
         </div>
 
-        <h2 class="text-xl font-bold mb-3">Recent Scanned Products</h2>
+        <!-- Recent Scanned Products Table -->
+        <h2 class="text-xl font-bold mb-3">📌 Recent Scanned Products</h2>
         <div class="overflow-auto">
-            <table class="w-full border border-gray-300 rounded-lg">
-                <thead>
+            <table class="w-full border border-gray-300 rounded-lg shadow-sm">
+                <thead class="bg-gray-200">
                     <tr>
-                        <th class="border">Product Id</th>
-                        <th class="border">Product Name</th>
-                        <th class="border">Stock</th>
+                        <th class="border p-3">Product ID</th>
+                        <th class="border p-3">Product Name</th>
+                        <th class="border p-3">Stock</th>
                     </tr>
                 </thead>
-                <tbody id="recent-products"></tbody>
+                <tbody id="recent-products" class="text-gray-700 text-center"></tbody>
             </table>
         </div>
 
-        <div id="qr-reader" class="hidden mt-6 relative"></div>
-        <button id="closeScanner" class="hidden btn btn-red mt-2">
+        <!-- QR Scanner -->
+        <div id="qr-reader" class="hidden mt-6 relative border-2 border-gray-300 p-4 rounded-lg"></div>
+        <button id="closeScanner" class="hidden btn bg-red-600 text-white font-bold py-2 px-4 rounded-lg mt-3 hover:bg-red-800">
             ❌ Stop Scanning
         </button>
 
