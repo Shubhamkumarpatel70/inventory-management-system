@@ -160,17 +160,19 @@ app.post("/play-beep", async (req, res) => {
 
         exec(command, (err, stdout, stderr) => {
             if (err) {
-                console.error("🔇 Beep sound error:", stderr);
+                console.error("🔇 Beep sound error:", stderr || err.message);
                 return res.status(500).json({ error: "Error playing beep sound" });
             }
-            res.json({ message: "✅ Beep sound played!" });
+            res.json({ message: "Beep sound played!" });
         });
+        
     } catch (error) {
         console.error("❌ Beep sound file not found:", error.message);
         res.status(404).json({ error: "Beep sound file not found" });
     }
 });
 
+console.log("Beep sound file path:", BEEP_SOUND_PATH);
 // Save scan
 app.post("/save-scan",
     [

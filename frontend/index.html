@@ -264,6 +264,8 @@
     scanningPaused = true;
     await playBeep();
 
+    const beep = new Audio("./audio/beep.wav");
+
     const inventory = await fetchInventory();
     let existingProduct = inventory.find(item => item.id === decodedText);
 
