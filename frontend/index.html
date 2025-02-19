@@ -8,268 +8,133 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/html5-qrcode"></script>
     <link rel="stylesheet" href="styles.css">
-<style>
-    @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600&display=swap');
+   < <style>
+        .popup {
+            position: fixed;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background-color: rgba(0, 0, 0, 0.85);
+            color: #fff;
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-weight: bold;
+            display: none;
+            z-index: 1000;
+            animation: fadeInOut 3s ease-in-out;
+            box-shadow: 0px 4px 10px rgba(0, 0, 0, 0.3);
+        }
 
-body {
-    background: linear-gradient(135deg, #e3f2fd, #f1f5f9);
-    font-family: 'Poppins', sans-serif;
-    color: #333;
-    margin: 0;
-    padding: 0;
-}
-
-/* === Popup Notifications === */
-.popup {
-    position: fixed;
-    top: 20px;
-    left: 50%;
-    transform: translateX(-50%);
-    background: rgba(50, 50, 50, 0.9);
-    color: white;
-    padding: 14px 28px;
-    border-radius: 10px;
-    font-weight: 600;
-    display: none;
-    z-index: 1000;
-    animation: fadeInOut 3s ease-in-out;
-    box-shadow: 0px 6px 24px rgba(0, 0, 0, 0.25);
-}
-
-/* === Grid Layout for Cards === */
-.grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-    gap: 20px;
-    padding: 20px;
-}
-
-/* === Modern Card Styling === */
-.grid div {
-    transition: all 0.3s ease-in-out;
-    border-radius: 14px;
-    padding: 20px;
-    text-align: center;
-    color: white;
-    font-weight: 600;
-    font-size: 18px;
-    backdrop-filter: blur(12px);
-    box-shadow: 0px 8px 20px rgba(0, 0, 0, 0.15);
-    border: 1px solid rgba(255, 255, 255, 0.2);
-    overflow: hidden;
-}
-
-/* === Updated Gradient Colors === */
-.grid div:nth-child(1) { background: linear-gradient(135deg, #4c8bf5, #4169e1); }
-.grid div:nth-child(2) { background: linear-gradient(135deg, #2eca72, #1b9b50); }
-.grid div:nth-child(3) { background: linear-gradient(135deg, #ffb92c, #e09500); }
-.grid div:nth-child(4) { background: linear-gradient(135deg, #e44198, #c91a74); }
-.grid div:nth-child(5) { background: linear-gradient(135deg, #14b4c5, #0e8599); }
-.grid div:nth-child(6) { background: linear-gradient(135deg, #f34646, #c92c2c); }
-
-/* === Smooth Hover Effects === */
-.grid div:hover {
-    transform: translateY(-6px);
-    box-shadow: 0px 12px 30px rgba(0, 0, 0, 0.18);
-    filter: brightness(1.15);
-}
-
-/* === Buttons === */
-.btn {
-    padding: 12px 24px;
-    border-radius: 12px;
-    font-weight: 600;
-    transition: all 0.3s ease-in-out;
-    display: inline-block;
-    cursor: pointer;
-    border: none;
-    font-size: 16px;
-    box-shadow: 0px 5px 12px rgba(0, 0, 0, 0.15);
-    text-transform: uppercase;
-}
-
-.btn:hover {
-    opacity: 0.9;
-    transform: scale(1.05);
-}
-
-.btn-green {
-    background: linear-gradient(135deg, #28c76f, #20a75f);
-    color: white;
-}
-
-.btn-purple {
-    background: linear-gradient(135deg, #9561e2, #7b52c6);
-    color: white;
-}
-
-.btn-red {
-    background: linear-gradient(135deg, #ea5455, #d42b2c);
-    color: white;
-}
-
-/* === Table Styling === */
-table {
-    width: 100%;
-    border-collapse: collapse;
-    margin-top: 20px;
-    background: white;
-    border-radius: 12px;
-    overflow: hidden;
-    box-shadow: 0px 8px 20px rgba(0, 0, 0, 0.1);
-}
-
-th, td {
-    padding: 16px;
-    text-align: center;
-    font-size: 16px;
-}
-
-th {
-    background: linear-gradient(135deg, #dbeafe, #bfdbfe);
-    font-weight: bold;
-    color: #333;
-    border-bottom: 2px solid #cbd5e1;
-}
-
-tbody tr:nth-child(even) {
-    background-color: #f8fafc;
-}
-
-tbody tr:hover {
-    background-color: #e2e8f0;
-    transition: background 0.3s ease;
-}
-
-/* === Input Fields === */
-input[type="text"] {
-    padding: 12px;
-    border-radius: 10px;
-    border: 2px solid #cbd5e1;
-    transition: all 0.3s ease;
-    font-size: 16px;
-    width: 100%;
-}
-
-input[type="text"]:focus {
-    border-color: #4169e1;
-    outline: none;
-    box-shadow: 0px 0px 10px rgba(65, 105, 225, 0.5);
-}
-
-/* === Dropdown Container === */
-select {
-    appearance: none; /* Removes default browser styles */
-    width: 100%;
-    max-width: 300px;
-    padding: 12px;
-    border-radius: 10px;
-    background: linear-gradient(135deg, #4c8bf5, #4169e1);
-    color: white;
-    font-weight: 600;
-    font-size: 16px;
-    border: none;
-    outline: none;
-    box-shadow: 0px 5px 12px rgba(0, 0, 0, 0.15);
-    cursor: pointer;
-    transition: all 0.3s ease-in-out;
-}
-
-/* === Hover & Focus Effects === */
-select:hover, select:focus {
-    background: linear-gradient(135deg, #4169e1, #324cce);
-    transform: scale(1.05);
-    box-shadow: 0px 8px 16px rgba(0, 0, 0, 0.2);
-}
-
-/* === Dropdown Arrow Icon Customization === */
-select::-ms-expand {
-    display: none; /* Hide default dropdown arrow in IE */
-}
-
-/* === Improve Options Look === */
-option {
-    background: #f8fafc;
-    color: #333;
-    padding: 12px;
-    font-weight: 500;
-}
-
-/* === Mobile Optimization === */
-@media (max-width: 640px) {
-    select {
-        max-width: 100%;
-    }
-}
-
-/* === Camera Selection === */
-#cameraSelect {
-    padding: 12px;
-    border-radius: 10px;
-    background: linear-gradient(135deg, #4169e1, #2c52d3);
-    color: white;
-    font-weight: 600;
-    transition: all 0.3s ease;
-}
-
-#cameraSelect:hover {
-    background: linear-gradient(135deg, #2c52d3, #1f3ab1);
-}
-
-/* === Loading Animation === */
-.loading {
-    display: inline-block;
-    width: 26px;
-    height: 26px;
-    border: 4px solid rgba(0, 0, 0, 0.2);
-    border-radius: 50%;
-    border-top-color: #4169e1;
-    animation: spin 1s ease-in-out infinite;
-}
-
-@keyframes spin {
-    to {
-        transform: rotate(360deg);
-    }
-}
-
-/* === Fade In/Out Animation for Popups === */
-@keyframes fadeInOut {
-    0% { opacity: 0; }
-    10% { opacity: 1; }
-    90% { opacity: 1; }
-    100% { opacity: 0; }
-}
-
-/* === Responsive Design for Mobile Screens === */
-@media (max-width: 640px) {
+        @media (max-width: 640px) {
     #qr-reader {
         width: 100% !important;
-        height: auto !important;
+        height: 100% !important;
     }
 
     #cameraSelect {
-        width: 80% !important;
+        width: 70% !important;
     }
 
     #refreshCameras {
-        width: 18% !important;
+        width: 25% !important;
     }
 
     #scanQR {
         width: 100% !important;
     }
-
-    .grid {
-        grid-template-columns: 1fr !important;
-    }
-
-    .btn {
-        width: 100%;
-    }
 }
 
-</style>
+        @keyframes fadeInOut {
+            0% {
+                opacity: 0;
+            }
+
+            10% {
+                opacity: 1;
+            }
+
+            90% {
+                opacity: 1;
+            }
+
+            100% {
+                opacity: 0;
+            }
+        }
+
+        th,
+        td {
+            padding: 10px;
+            text-align: center;
+        }
+
+        th {
+            background-color: #f3f4f6;
+            font-weight: bold;
+        }
+
+        tbody tr:nth-child(even) {
+            background-color: #f9fafb;
+        }
+
+        tbody tr:hover {
+            background-color: #e5e7eb;
+        }
+
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(0, 0, 0, 0.3);
+            border-radius: 50%;
+            border-top-color: #000;
+            animation: spin 1s ease-in-out infinite;
+        }
+
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
+        .btn {
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-weight: bold;
+            transition: all 0.3s ease;
+        }
+
+        .btn:hover {
+            opacity: 0.8;
+        }
+
+        .btn-green {
+            background-color: #34D399;
+            color: white;
+        }
+
+        .btn-green:hover {
+            background-color: #10B981;
+        }
+
+        .btn-purple {
+            background-color: #7C3AED;
+            color: white;
+        }
+
+        .btn-purple:hover {
+            background-color: #6D28D9;
+        }
+
+        .btn-red {
+            background-color: #EF4444;
+            color: white;
+        }
+
+        .btn-red:hover {
+            background-color: #DC2626;
+        }
+    </style>
 </head>
 
 <body class="bg-gray-100 p-6">
@@ -302,22 +167,18 @@ option {
                     🔍 View All
                 </button>
             </div>
-            <div class="bg-white p-5 rounded-xl shadow-lg text-center w-full max-w-md mx-auto border border-gray-200">
-                <h2 class="text-xl font-semibold text-gray-700">📷 Select Camera</h2>
-            
-                <div class="flex items-center justify-center gap-3 mt-3">
-                    <select id="cameraSelect" class="w-full px-4 py-3 bg-gradient-to-r from-indigo-500 to-indigo-600 text-white font-medium rounded-lg shadow-md focus:outline-none focus:ring-2 focus:ring-indigo-400 transition-all">
+            <div class="bg-indigo-100 p-4 rounded-lg shadow text-center w-full max-w-md mx-auto">
+                <h2 class="text-lg font-semibold">Select Camera</h2>
+                <div class="flex items-center justify-center gap-2">
+                    <select id="cameraSelect" class="mt-2 w-full px-4 py-2 bg-indigo-500 text-white rounded-lg hover:bg-indigo-600 transition">
                         <option value="">Select Camera</option>
                     </select>
-                    
-                    <button id="refreshCameras" class="flex items-center justify-center p-3 rounded-lg bg-gradient-to-r from-purple-500 to-purple-600 text-white shadow-md hover:scale-105 transition-transform">
+                    <button id="refreshCameras" class="btn btn-purple mt-2">
                         🔄
                     </button>
                 </div>
-            
-                <p id="cameraStatus" class="text-sm text-gray-500 mt-3 italic"></p>
+                <p id="cameraStatus" class="text-sm text-gray-600 mt-2"></p>
             </div>
-            
 
             <div class="bg-yellow-100 p-4 rounded-lg shadow text-center">
                 <h2 class="text-lg font-semibold">Search Products</h2>
