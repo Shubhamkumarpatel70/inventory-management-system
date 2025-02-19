@@ -142,13 +142,32 @@
         }
 
         async function updateProduct() {
-            inventory[editIndex].name = document.getElementById("edit-name").value.trim();
-            inventory[editIndex].stock = parseInt(document.getElementById("edit-stock").value);
+    const updatedName = document.getElementById("edit-name").value.trim();
+    const updatedStock = parseInt(document.getElementById("edit-stock").value);
+    const productId = inventory[editIndex].id;
 
-            closeModal();
-            showPopup("✅ Product updated!");
-            renderInventory();
-        }
+    try {
+        const response = await fetch(`https://inventory-management-system-1-2c9n.onrender.com/products/${productId}`, {
+            method: "PUT",
+            headers: {
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify({ name: updatedName, stock: updatedStock })
+        });
+
+        if (!response.ok) throw new Error("Failed to update product");
+
+        inventory[editIndex].name = updatedName;
+        inventory[editIndex].stock = updatedStock;
+        closeModal();
+        showPopup("✅ Product updated!");
+        renderInventory();
+    } catch (error) {
+        console.error("❌ Error updating product:", error);
+        showPopup("⚠️ Error updating product");
+    }
+}
+
 
         async function deleteSelectedProducts() {
             const selected = document.querySelectorAll(".product-checkbox:checked");
