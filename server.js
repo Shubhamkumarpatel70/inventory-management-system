@@ -13,8 +13,9 @@ const BEEP_SOUND_PATH = path.join(__dirname, "frontend", "audio", "beep.wav");
 
 // WebSocket setup
 const wss = new WebSocket.Server({ noServer: true });
-let clients = [];
+let clients = new Set(); // Use Set to prevent duplicate connections
 
+// Load products from file
 const loadProducts = async () => {
     try {
         await fs.access(DATA_FILE).catch(() => fs.writeFile(DATA_FILE, JSON.stringify([]), "utf8"));
@@ -26,6 +27,7 @@ const loadProducts = async () => {
     }
 };
 
+// Save products to file
 const saveProducts = async (products) => {
     try {
         await fs.writeFile(DATA_FILE, JSON.stringify(products, null, 2), "utf8");
@@ -37,10 +39,14 @@ const saveProducts = async (products) => {
 
 // WebSocket connection
 wss.on("connection", (ws) => {
-    clients.push(ws);
+    clients.add(ws);
 
     ws.on("message", (message) => console.log("Message received:", message));
-    ws.on("close", () => (clients = clients.filter(client => client !== ws)));
+
+    ws.on("close", () => {
+        clients.delete(ws);
+        console.log("🔴 WebSocket disconnected");
+    });
 });
 
 app.use(express.static(path.join(__dirname, "frontend")));
@@ -157,9 +163,10 @@ app.post("/play-beep", async (req, res) => {
                 console.error("🔇 Beep sound error:", stderr);
                 return res.status(500).json({ error: "Error playing beep sound" });
             }
-            res.json({ message: "Beep sound played!" });
+            res.json({ message: "✅ Beep sound played!" });
         });
     } catch (error) {
+        console.error("❌ Beep sound file not found:", error.message);
         res.status(404).json({ error: "Beep sound file not found" });
     }
 });
@@ -189,7 +196,7 @@ app.post("/save-scan",
             await saveProducts(products);
             clients.forEach(client => client.send(JSON.stringify({ type: 'scan-saved', product })));
 
-            res.json({ message: "Scan saved", product });
+            res.json({ message: "✅ Scan saved", product });
         } catch (error) {
             res.status(500).json({ error: "Internal server error while saving scan" });
         }
