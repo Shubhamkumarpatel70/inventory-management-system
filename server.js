@@ -9,7 +9,7 @@ const WebSocket = require("ws");
 const app = express();
 const PORT = process.env.PORT || 4000;
 const DATA_FILE = path.join(__dirname, "products.json");
-const BEEP_SOUND_PATH = path.join(__dirname, "frontend", "audio", "beep.wav");
+const BEEP_SOUND_PATH = path.join(__dirname, "beep.wav");
 
 // WebSocket setup
 const wss = new WebSocket.Server({ noServer: true });
@@ -263,25 +263,29 @@ app.post("/save-scan",
         try {
             let { id, name } = req.body;
             let products = await loadProducts();
-            let product = products.find((p) => p.id === id);
+            let productIndex = products.findIndex((p) => p.id === id);
 
-            if (product) {
-                product.stock += 1;
+            if (productIndex !== -1) {
+                // Product exists, increase stock by 1
+                products[productIndex].stock += 1;
             } else {
+                // Product does not exist, ensure name is provided
                 if (!name) return res.status(400).json({ error: "Product name is required for a new entry" });
-                product = { id, name, stock: 1 };
-                products.push(product);
+
+                // Add new product with stock = 1
+                products.push({ id, name, stock: 1 });
             }
 
             await saveProducts(products);
-            broadcast("scan-saved", product);
+            broadcast("scan-saved", products[productIndex] || { id, name, stock: 1 });
 
-            res.json({ message: "✅ Scan saved", product });
+            res.json({ message: "✅ Scan saved", products });
         } catch (error) {
             res.status(500).json({ error: "Internal server error while saving scan" });
         }
     }
 );
+
 
 // Start Server with WebSocket Support
 const server = app.listen(PORT, () => console.log(`🚀 Server running on port ${PORT}`));
